@@ -12,15 +12,20 @@ class StockLogSerializer(serializers.ModelSerializer):
         model = StockLog
         fields = ['id', 'item', 'user', 'change_amount', 'reason', 'notes', 'timestamp']
 
-# Verify this name matches exactly:
 class InventoryItemSerializer(serializers.ModelSerializer):
-    category_name = serializers.ReadOnlyField(source='category.name')
-    owner = serializers.ReadOnlyField(source='owner.username')
+
+    category_name = serializers.CharField(write_only=True, required=False)
+    category = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = InventoryItem
-        fields = [
-            'id', 'name', 'sku', 'category', 'category_name', 
-            'description', 'quantity', 'low_stock_threshold', 
-            'created_at', 'updated_at', 'owner'
-        ]
+        fields = ['id', 'name', 'sku', 'category', 'category_name', 'quantity'] 
+
+    def create(self, validated_data):
+        cat_name = validated_data.pop('category_name', None)
+        
+        if cat_name:
+            category_obj, created = Category.objects.get_or_create(name=cat_name)
+            validated_data['category'] = category_obj
+            
+        return super().create(validated_data)
