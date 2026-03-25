@@ -13,7 +13,7 @@ class Category(models.Model):
 
 class InventoryItem(models.Model):
     name = models.CharField(max_length=200)
-    sku = models.CharField(max_length=50, unique=True)
+    sku = models.CharField(max_length=50, unique=True, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='items')
     description = models.TextField(blank=True)
     quantity = models.PositiveIntegerField(default=0)
