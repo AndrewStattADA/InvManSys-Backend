@@ -41,3 +41,15 @@ class StockLog(models.Model):
 
     def __str__(self):
         return f"{self.item.name} - {self.change_amount} ({self.reason})"
+
+class Profile(models.Model):
+    ROLE_CHOICES = [
+        ('user', 'User'),
+        ('staff', 'Staff'),
+        ('manager', 'Manager'),
+    ]
+    user = models.OneToOneField(User, related_name='profile', on_delete=models.CASCADE)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.role}"
