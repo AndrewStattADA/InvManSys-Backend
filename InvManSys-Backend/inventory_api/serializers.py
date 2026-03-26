@@ -49,12 +49,31 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             
         return super().create(validated_data)
 
-
-
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-        # This adds the role from the Profile model to the login response
-        data['role'] = self.user.profile.role
+        # get the role or default to 'user' if profile is missing
+        data['role'] = getattr(self.user.profile, 'role', 'user')
         return data
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    role = serializers.CharField(source='profile.role')
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role']
+
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', None)
+        
+        # Update User fields
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+        instance.save()
+
+        # Update Profile role
+        if profile_data and 'role' in profile_data:
+            instance.profile.role = profile_data['role']
+            instance.profile.save()
+            
+        return instance
