@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import InventoryItemViewSet, CategoryViewSet, StockLogViewSet
+from .views import InventoryItemViewSet, CategoryViewSet, StockLogViewSet, RegisterView
 
 # The router automatically creates the standard GET, POST, PUT, DELETE routes
 router = DefaultRouter()
@@ -10,4 +10,5 @@ router.register(r'logs', StockLogViewSet, basename='stocklog')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('register/', RegisterView.as_view(), name='auth_register'),
 ]
