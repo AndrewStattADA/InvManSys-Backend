@@ -1,6 +1,8 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, generics 
+from rest_framework.permissions import AllowAny
 from .models import InventoryItem, Category, StockLog
-from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer
+from django.contrib.auth.models import User
+from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer, RegisterSerializer
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -29,3 +31,8 @@ class StockLogViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return StockLog.objects.filter(item__owner=self.request.user)
+
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    permission_classes = (AllowAny,) 
+    serializer_class = RegisterSerializer
