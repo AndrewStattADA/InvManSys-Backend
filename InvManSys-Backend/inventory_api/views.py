@@ -2,7 +2,10 @@ from rest_framework import viewsets, permissions, generics
 from rest_framework.permissions import AllowAny
 from .models import InventoryItem, Category, StockLog
 from django.contrib.auth.models import User
-from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer, RegisterSerializer
+from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer, RegisterSerializer, MyTokenObtainPairSerializer
+from .permissions import IsManagerOrReadOnly
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
@@ -12,17 +15,19 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class InventoryItemViewSet(viewsets.ModelViewSet):
     queryset = InventoryItem.objects.all()
     serializer_class = InventoryItemSerializer
+    permission_classes = [permissions.IsAuthenticated, IsManagerOrReadOnly]
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-    def get_queryset(self):
-        # Users only see their own items
-        return InventoryItem.objects.filter(owner=self.request.user)
-
-    def perform_create(self, serializer):
-        # set the owner to the logged-in user
-        serializer.save(owner=self.request.user)
+    def perform_update(self, serializer):
+        user_role = self.request.user.profile.role
+        
+        # Staff Role: Only allow quantity updates
+        if user_role == 'staff' and not self.request.user.is_superuser:
+            # Checks if they tried to change name or category
+            if 'name' in self.request.data or 'category_name' in self.request.data:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Staff can only update the Quantity.")
+        
+        serializer.save()
 
 class StockLogViewSet(viewsets.ReadOnlyModelViewSet):
 
@@ -36,3 +41,6 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,) 
     serializer_class = RegisterSerializer
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
