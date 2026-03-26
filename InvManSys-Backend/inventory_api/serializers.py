@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import InventoryItem, Category, StockLog
+from .models import InventoryItem, Category, StockLog, Profile
 from django.contrib.auth.models import User
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -10,12 +11,13 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ('username', 'password', 'email')
 
     def create(self, validated_data):
-        # use create_user to properly hash the password
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data.get('email', ''),
             password=validated_data['password']
         )
+        # EVERY new user starts as a 'user' (read-only)
+        Profile.objects.create(user=user, role='user') 
         return user
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -46,3 +48,13 @@ class InventoryItemSerializer(serializers.ModelSerializer):
             validated_data['category'] = category_obj
             
         return super().create(validated_data)
+
+
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        # This adds the role from the Profile model to the login response
+        data['role'] = self.user.profile.role
+        return data
+
