@@ -1,8 +1,16 @@
+import os
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
 from rest_framework import viewsets, permissions, generics
 from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import PermissionDenied
-from django.contrib.auth.models import User
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+from django.contrib.auth.models import User
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 from .models import InventoryItem, Category, StockLog, UserActionLog
 from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer, RegisterSerializer, MyTokenObtainPairSerializer, UserProfileSerializer, UserActionLogSerializer
 
@@ -117,3 +125,59 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 target_user=target_user,
                 action_details=f"Manager changed role from {old_role} to {new_role}"
             )   
+
+
+# --- Password Reset Request ---
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def request_password_reset(request):
+    email = request.data.get('email')
+    user = User.objects.filter(email=email).first()
+    
+    if user:
+        # Generate token and encoded user ID
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        frontend_url = "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev"
+        reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
+        
+        message = Mail(
+            from_email='andrewjstatt@gmail.com',
+            to_emails=email,
+            subject='Password Reset Request - Inventory System',
+            html_content=f'''
+                <h3>Reset Your Password</h3>
+                <p>Click the link below to set a new password:</p>
+                <a href="{reset_link}">{reset_link}</a>
+                <p>If you did not request this, please ignore this email.</p>
+            '''
+        )
+        try:
+            sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
+            print(f"--- DEBUG RESET LINK: {reset_link} ---")
+            sg.send(message)
+        except Exception as e:
+            return Response({"error": "Failed to send email. Check SendGrid API key."}, status=500)
+            
+    return Response({"message": "If an account exists with this email, a reset link has been sent."})
+
+#  Password Reset Confirmation 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password_confirm(request):
+    uidb64 = request.data.get('uid')
+    token = request.data.get('token')
+    new_password = request.data.get('password')
+    
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return Response({"error": "Invalid user identification."}, status=400)
+
+    if default_token_generator.check_token(user, token):
+        user.set_password(new_password)
+        user.save()
+        return Response({"message": "Password has been reset successfully. You can now login."})
+    else:
+        return Response({"error": "Invalid or expired token."}, status=400)
