@@ -26,21 +26,23 @@ class InventoryItem(models.Model):
         return f"{self.name} (SKU: {self.sku})"
 
 class StockLog(models.Model):
-    # "Audit history for stock changes"
-    CHANGE_TYPES = [
-        ('IN', 'Stock In'),
-        ('OUT', 'Stock Out'),
-        ('ADJ', 'Adjustment'),
-    ]
-    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='logs')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    change_amount = models.IntegerField() 
-    reason = models.CharField(max_length=10, choices=CHANGE_TYPES)
-    notes = models.TextField(blank=True)
+    item = models.ForeignKey('InventoryItem', on_delete=models.CASCADE)
+    action = models.CharField(max_length=50)
+    details = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.item.name} - {self.change_amount} ({self.reason})"
+        return f"{self.user.username} - {self.action} on {self.item.name}"
+
+class UserActionLog(models.Model):
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='actions_performed')
+    target_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='actions_received')
+    action_details = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.actor.username} modified {self.target_user.username}"
 
 class Profile(models.Model):
     ROLE_CHOICES = [
