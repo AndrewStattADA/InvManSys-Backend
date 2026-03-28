@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import InventoryItem, Category, StockLog, Profile
+from .models import InventoryItem, Category, StockLog, UserActionLog, Profile
 from django.contrib.auth.models import User
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -27,9 +27,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class StockLogSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
+    item = serializers.StringRelatedField(read_only=True)
+
     class Meta:
         model = StockLog
-        fields = ['id', 'item', 'user', 'change_amount', 'reason', 'notes', 'timestamp']
+        fields = ['id', 'user', 'item', 'action', 'details', 'timestamp']
 
 class InventoryItemSerializer(serializers.ModelSerializer):
 
@@ -77,3 +79,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
             instance.profile.save()
             
         return instance
+
+class UserActionLogSerializer(serializers.ModelSerializer):
+    actor = serializers.StringRelatedField(read_only=True)
+    target_user = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = UserActionLog
+        fields = ['id', 'actor', 'target_user', 'action_details', 'timestamp']
