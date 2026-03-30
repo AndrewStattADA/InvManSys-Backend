@@ -6,3 +6,4 @@ coverage
 whitenoise
 djangorestframework-simplejwt
 django-filter
+sendgrid
