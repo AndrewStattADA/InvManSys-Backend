@@ -28,8 +28,8 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
 
-        if user_role == 'user' and not user.is_superuser:
-            raise PermissionDenied("You do not have permission to delete items.")
+        if user_role in ['user', 'staff'] and not user.is_superuser:
+            raise PermissionDenied("Only Managers and Admins can delete items.")
 
         item_name = instance.name
         
