@@ -9,10 +9,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    
+    # This tells EVERY step below to run inside your subfolder
+    defaults:
+      run:
+        working-directory: ./InvManSys-Backend
 
     services:
-      # If you move to Postgres later, you'd add it here. 
-      # For now, we use Django's default SQLite for speed.
       db:
         image: postgres:15
         env:
@@ -38,7 +41,6 @@ jobs:
 
     - name: Run Tests with Coverage
       env:
-        # We provide a dummy key so the Password Reset tests don't crash
         SENDGRID_API_KEY: "SG.fake_key_for_testing"
         SECRET_KEY: "ci-test-secret-key"
       run: |
@@ -47,5 +49,4 @@ jobs:
 
     - name: Check Coverage Threshold
       run: |
-        # This will fail the build if coverage drops below 80%
         coverage report --fail-under=80
