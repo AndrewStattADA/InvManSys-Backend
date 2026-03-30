@@ -24,11 +24,34 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
     serializer_class = InventoryItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def perform_destroy(self, instance):
+        user = self.request.user
+        user_role = getattr(user.profile, 'role', 'user')
+
+        if user_role == 'user' and not user.is_superuser:
+            raise PermissionDenied("You do not have permission to delete items.")
+
+        item_name = instance.name
+        
+        if instance.sku:
+            details_str = f"Deleted: {item_name} (SKU: {instance.sku})"
+        else:
+            details_str = f"Deleted: {item_name}"
+
+        StockLog.objects.create(
+            user=user,
+            item=None, 
+            item_name=item_name, 
+            action="Item Deleted",
+            details=details_str
+        )
+
+        instance.delete()
+
     def perform_update(self, serializer):
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
         item = self.get_object()
-      
         old_quantity = item.quantity
 
         if user_role == 'user' and not user.is_superuser:
@@ -47,16 +70,17 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             StockLog.objects.create(
                 user=user,
                 item=updated_item,
+                item_name=updated_item.name,
                 action="Quantity Updated",
                 details=f"Changed from {old_quantity} to {new_quantity}"
             )
 
     def perform_create(self, serializer):
         item = serializer.save(owner=self.request.user)
-
         StockLog.objects.create(
             user=self.request.user,
             item=item,
+            item_name=item.name, 
             action="Item Created",
             details=f"Initial quantity: {item.quantity}"
         )
@@ -75,7 +99,7 @@ class StockLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 class UserActionLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = UserActionLog.objects.all().order_by('-timestamp')
-    serializer_class = UserActionLogSerializer  # Now this works!
+    serializer_class = UserActionLogSerializer  
     permission_classes = [permissions.IsAuthenticated]
 
 class RegisterView(generics.CreateAPIView):

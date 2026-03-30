@@ -23,17 +23,27 @@ class InventoryItem(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='inventory_items')
 
     def __str__(self):
-        return f"{self.name} (SKU: {self.sku})"
+        if self.sku:
+            return f"{self.name} (SKU: {self.sku})"
+        return self.name
 
 class StockLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    item = models.ForeignKey('InventoryItem', on_delete=models.CASCADE)
+    item_name = models.CharField(max_length=200, null=True, blank=True)
+    item = models.ForeignKey(
+        'InventoryItem', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
     action = models.CharField(max_length=50)
     details = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.action} on {self.item.name}"
+        display_name = self.item_name or "Unknown Item"
+        username = self.user.username if self.user else "System"
+        return f"{username} - {self.action} on {display_name}"
 
 class UserActionLog(models.Model):
     actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='actions_performed')

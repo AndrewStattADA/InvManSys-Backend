@@ -27,11 +27,11 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class StockLogSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
-    item = serializers.StringRelatedField(read_only=True)
-
+    item = serializers.StringRelatedField(read_only=True) 
+    
     class Meta:
         model = StockLog
-        fields = ['id', 'user', 'item', 'action', 'details', 'timestamp']
+        fields = ['id', 'user', 'item', 'item_name', 'action', 'details', 'timestamp']
 
 class InventoryItemSerializer(serializers.ModelSerializer):
 
