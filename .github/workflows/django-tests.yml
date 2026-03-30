@@ -1,10 +1,6 @@
 name: Django CI/CD
 
-on:
-  push:
-    branches: [ "main", "feat/models" ]
-  pull_request:
-    branches: [ "main", "feat/models" ]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -17,21 +13,13 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install and Run Tests
+      - name: Install and Run
         shell: bash
         run: |
-          # 1. Step into the folder where manage.py actually lives
-          cd InvManSys-Backend
-          
-          # 2. Install stuff
+          cd InvManSys-Backend/InvManSys-Backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
-          
-          # 3. Run the tests
-          # We provide a SECRET_KEY because Django won't run without one
           export SECRET_KEY="ci-test-key"
-          export SENDGRID_API_KEY="SG.fake"
-          
           coverage run manage.py test inventory_api
           coverage report --fail-under=80
