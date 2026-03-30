@@ -10,10 +10,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
-    defaults:
-      run:
-        working-directory: ./InvManSys-Backend
-
     steps:
     - uses: actions/checkout@v4
 
@@ -23,7 +19,9 @@ jobs:
         python-version: '3.12'
 
     - name: Install Dependencies
+      # We explicitly 'cd' into the folder here
       run: |
+        cd InvManSys-Backend
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install coverage
@@ -32,11 +30,13 @@ jobs:
       env:
         SENDGRID_API_KEY: "SG.fake_key_for_testing"
         SECRET_KEY: "ci-test-secret-key"
+      # We explicitly 'cd' into the folder here too
       run: |
-        # We use coverage to run the tests so it can track the lines hit
+        cd InvManSys-Backend
         coverage run manage.py test inventory_api
         coverage report
 
     - name: Check Coverage Threshold
       run: |
+        cd InvManSys-Backend
         coverage report --fail-under=80
