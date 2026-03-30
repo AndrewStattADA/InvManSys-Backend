@@ -16,10 +16,15 @@ jobs:
       - name: Install and Run
         shell: bash
         run: |
-          cd InvManSys-Backend/InvManSys-Backend
+          # Go into the folder where requirements.txt and manage.py actually are
+          cd InvManSys-Backend
+          
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install coverage
+          
           export SECRET_KEY="ci-test-key"
+          export SENDGRID_API_KEY="SG.fake"
+          
           coverage run manage.py test inventory_api
           coverage report --fail-under=80
