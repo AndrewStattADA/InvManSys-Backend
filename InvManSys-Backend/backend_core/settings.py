@@ -11,7 +11,8 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-j(9u-k*y_^szd423t%81=
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG will be True in Codespaces/Local, and False on Render.
-DEBUG = 'RENDER' not in os.environ
+# DEBUG = 'RENDER' not in os.environ
+DEBUG = True
 
 ALLOWED_HOSTS = ['.github.dev', '.app.github.dev', 'localhost', '127.0.0.1']
 
