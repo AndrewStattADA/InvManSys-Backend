@@ -62,8 +62,14 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
-        # get the role or default to 'user' if profile is missing
-        data['role'] = getattr(self.user.profile, 'role', 'user')
+        
+        # Check if the user actually has a profile before trying to read it
+        if hasattr(self.user, 'profile'):
+            data['role'] = getattr(self.user.profile, 'role', 'user')
+        else:
+            # If no profile, check if they are an admin
+            data['role'] = 'admin' if self.user.is_superuser else 'user'
+            
         return data
 
 class UserProfileSerializer(serializers.ModelSerializer):
