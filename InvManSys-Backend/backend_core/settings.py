@@ -146,6 +146,7 @@ SIMPLE_JWT = {
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY, # This uses the key from line 10
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'UPDATE_LAST_LOGIN': False, 
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
