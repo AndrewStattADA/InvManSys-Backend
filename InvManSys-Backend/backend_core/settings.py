@@ -107,6 +107,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Keep your Codespace origins
 CORS_ALLOWED_ORIGINS = [
     "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev",
+    "https://invmansys-frontend.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
