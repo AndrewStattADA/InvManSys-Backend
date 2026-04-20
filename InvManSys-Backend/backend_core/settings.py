@@ -149,4 +149,10 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': False, 
 }
 
+
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
+DEFAULT_FROM_EMAIL = 'mydogisollie@gmail.com'
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev')
+
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

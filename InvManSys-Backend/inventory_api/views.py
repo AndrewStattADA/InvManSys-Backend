@@ -1,4 +1,5 @@
 import os
+from django.conf import
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import viewsets, permissions, generics
@@ -159,31 +160,27 @@ def request_password_reset(request):
     user = User.objects.filter(email=email).first()
     
     if user:
-        # Generate token and encoded user ID
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
-        frontend_url = "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev"
-        reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
+        
+        # Use the variable from settings instead of hardcoding
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
         
         message = Mail(
-            from_email='andrewjstatt@gmail.com',
+            from_email=settings.DEFAULT_FROM_EMAIL,
             to_emails=email,
             subject='Password Reset Request - Inventory System',
-            html_content=f'''
-                <h3>Reset Your Password</h3>
-                <p>Click the link below to set a new password:</p>
-                <a href="{reset_link}">{reset_link}</a>
-                <p>If you did not request this, please ignore this email.</p>
-            '''
+            html_content=f'Click here to reset: <a href="{reset_link}">{reset_link}</a>'
         )
         try:
-            sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
-            print(f"--- DEBUG RESET LINK: {reset_link} ---")
+            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
             sg.send(message)
         except Exception as e:
+            # This prints the REAL error to your Render logs so you can see it
+            print(f"SendGrid Error: {e}") 
             return Response({"error": "Failed to send email. Check SendGrid API key."}, status=500)
             
-    return Response({"message": "If an account exists with this email, a reset link has been sent."})
+    return Response({"message": "If an account exists, a reset link has been sent."})
 
 #  Password Reset Confirmation 
 @api_view(['POST'])
