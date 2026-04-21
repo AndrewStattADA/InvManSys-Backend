@@ -164,7 +164,7 @@ def request_password_reset(request):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
         # Get values from settings.py or environment
-        frontend_url = getattr(settings, 'FRONTEND_URL', "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev")
+        frontend_url = os.environ.get('FRONTEND_URL', "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev")
         reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
         
         message = Mail(
