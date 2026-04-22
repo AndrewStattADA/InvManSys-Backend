@@ -124,3 +124,6 @@ coverage report
     Static Files: Handled automatically by WhiteNoise; ensure python manage.py collectstatic is run during build.
 
     NOTE: If using the Render Free Tier with SQLite, the database will reset on every restart. For production data persistence, connect a PostgreSQL instance.
+
+#AI Usage
+    AI was used througout this project for code comments , debugging , test creation. Readme and intergrations in line with this projects rules
