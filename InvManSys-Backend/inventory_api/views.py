@@ -49,6 +49,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
 
         instance.delete()
 
+    # limited editability for different staff levels 
     def perform_update(self, serializer):
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
@@ -86,6 +87,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             details=f"Initial quantity: {item.quantity}"
         )
 
+# role locked 
 class StockLogViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = StockLogSerializer
     permission_classes = [permissions.IsAuthenticated]
