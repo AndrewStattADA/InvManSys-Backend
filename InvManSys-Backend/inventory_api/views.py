@@ -151,7 +151,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 action_details=f"Manager changed role from {old_role} to {new_role}"
             )   
 
-
+# builtin framework create a tempory token that lasts xyz thats usable to reset the password 
 # --- Password Reset Request ---
 @api_view(['POST'])
 @permission_classes([AllowAny])
