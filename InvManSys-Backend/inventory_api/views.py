@@ -15,30 +15,41 @@ from sendgrid.helpers.mail import Mail
 from .models import InventoryItem, Category, StockLog, UserActionLog
 from .serializers import InventoryItemSerializer, CategorySerializer, StockLogSerializer, RegisterSerializer, MyTokenObtainPairSerializer, UserProfileSerializer, UserActionLogSerializer
 
+# --- CATEGORY MANAGEMENT ---
 class CategoryViewSet(viewsets.ModelViewSet):
+    # """Handles CRUD operations for Item Categories."""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+# --- INVENTORY CORE LOGIC ---
 class InventoryItemViewSet(viewsets.ModelViewSet):
+    # """
+    # Handles Inventory items. Includes custom logic for 
+    # Role-Based Access Control (RBAC) and automated Stock Logging.
+    # """
     queryset = InventoryItem.objects.all()
     serializer_class = InventoryItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_destroy(self, instance):
+        # """Logic for deleting an item: Restricted to Managers/Admins only."""
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
 
+        # Check if user has deletion authority
         if user_role in ['user', 'staff'] and not user.is_superuser:
             raise PermissionDenied("Only Managers and Admins can delete items.")
 
         item_name = instance.name
         
+        # Prepare the detail string for the audit log
         if instance.sku:
             details_str = f"Deleted: {item_name} (SKU: {instance.sku})"
         else:
             details_str = f"Deleted: {item_name}"
 
+        # Create an immutable StockLog entry before the item is gone from the DB
         StockLog.objects.create(
             user=user,
             item=None, 
@@ -49,16 +60,18 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
 
         instance.delete()
 
-    # limited editability for different staff levels 
     def perform_update(self, serializer):
+        # """Logic for updating items: Restricts 'Staff' to quantity-only edits."""
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
         item = self.get_object()
         old_quantity = item.quantity
 
+        # Block basic users from all edits
         if user_role == 'user' and not user.is_superuser:
             raise PermissionDenied("You do not have permission to edit items.")
 
+        # Block staff from editing anything except Quantity
         if user_role == 'staff' and not user.is_superuser:
             sent_fields = self.request.data.keys()
             forbidden_fields = ['name', 'category', 'category_name', 'price', 'sku']
@@ -67,6 +80,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
 
         updated_item = serializer.save()
 
+        # Log the change specifically if the quantity was altered
         new_quantity = updated_item.quantity
         if old_quantity != new_quantity:
             StockLog.objects.create(
@@ -78,6 +92,7 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             )
 
     def perform_create(self, serializer):
+        """Assigns the creator as owner and generates an initial creation log."""
         item = serializer.save(owner=self.request.user)
         StockLog.objects.create(
             user=self.request.user,
@@ -87,43 +102,52 @@ class InventoryItemViewSet(viewsets.ModelViewSet):
             details=f"Initial quantity: {item.quantity}"
         )
 
-# role locked 
+# --- AUDIT & LOGGING VIEWS ---
 class StockLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Viewset for viewing stock history. Access is role-locked."""
     serializer_class = StockLogSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        # """Restricts log visibility to Staff, Managers, and Superusers only."""
         user = self.request.user
         user_role = getattr(user.profile, 'role', 'user')
-        # Only Staff, Managers, and Admins can see the logs
+        
         if user_role in ['manager', 'staff'] or user.is_superuser:
             return StockLog.objects.all().order_by('-timestamp')
         return StockLog.objects.none()
 
 class UserActionLogViewSet(viewsets.ReadOnlyModelViewSet):
+    # """Viewset for viewing administrative changes (role changes, etc)."""
     queryset = UserActionLog.objects.all().order_by('-timestamp')
     serializer_class = UserActionLogSerializer  
     permission_classes = [permissions.IsAuthenticated]
 
+# --- AUTHENTICATION & USER MANAGEMENT ---
 class RegisterView(generics.CreateAPIView):
+    # """Public endpoint for new user registration."""
     queryset = User.objects.all()
     permission_classes = (AllowAny,) 
     serializer_class = RegisterSerializer
 
 class MyTokenObtainPairView(TokenObtainPairView):
+    # """Custom JWT Login view to include user roles in the response."""
     serializer_class = MyTokenObtainPairSerializer
 
 class UserManagementViewSet(viewsets.ModelViewSet):
+    # """Allows Managers and Admins to manage user accounts and roles."""
     queryset = User.objects.all()
     serializer_class = UserProfileSerializer
 
     def perform_update(self, serializer):
+        #     """Enforces hierarchy: Managers can't touch Admins or other Managers."""
         target_user = self.get_object() 
         requesting_user = self.request.user 
         
         old_role = getattr(target_user.profile, 'role', 'user')
         new_role = self.request.data.get('role', old_role)
         
+        # Superusers bypass all restrictions
         if requesting_user.is_superuser:
             serializer.save()
 
@@ -138,6 +162,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         requesting_role = getattr(requesting_user.profile, 'role', 'user')
         target_role = getattr(target_user.profile, 'role', 'user')
 
+        # Manager-specific restrictions
         if requesting_role == 'manager':
             if target_role == 'manager' or target_user.is_superuser:
                 raise PermissionDenied("Managers cannot modify Manager or Admin accounts.")
@@ -146,6 +171,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
+        # Log the administrative role change
         if old_role != new_role:
             UserActionLog.objects.create(
                 actor=requesting_user,
@@ -153,22 +179,25 @@ class UserManagementViewSet(viewsets.ModelViewSet):
                 action_details=f"Manager changed role from {old_role} to {new_role}"
             )   
 
-# builtin framework create a tempory token that lasts xyz thats usable to reset the password 
-# --- Password Reset Request ---
+# --- PASSWORD RESET FLOW (SENDGRID) ---
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def request_password_reset(request):
+    # """Generates a temporary token and sends a reset link via SendGrid email."""
     email = request.data.get('email')
     user = User.objects.filter(email=email).first()
     
     if user:
+        # Create security tokens
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         
-        # Get values from settings.py or environment
+        # Build the link for the frontend to consume
         frontend_url = os.environ.get('FRONTEND_URL', "https://fluffy-chainsaw-x5pw9x6r6r64hvgvq-5173.app.github.dev")
         reset_link = f"{frontend_url}/reset-password/{uid}/{token}"
         
+        # Prepare Email
         message = Mail(
             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'mydogisollie@gmail.com'),
             to_emails=email,
@@ -180,7 +209,6 @@ def request_password_reset(request):
             '''
         )
         try:
-            # Get API key from settings or environment
             api_key = getattr(settings, 'SENDGRID_API_KEY', os.environ.get('SENDGRID_API_KEY'))
             sg = SendGridAPIClient(api_key)
             sg.send(message)
@@ -188,22 +216,25 @@ def request_password_reset(request):
             print(f"SendGrid Error: {str(e)}") 
             return Response({"error": f"Failed to send email: {str(e)}"}, status=500)
             
+    # Always return a generic message for security (don't confirm if email exists)
     return Response({"message": "If an account exists with this email, a reset link has been sent."})
 
-#  Password Reset Confirmation 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def reset_password_confirm(request):
+    # """Validates the UID and Token, then updates the user's password."""
     uidb64 = request.data.get('uid')
     token = request.data.get('token')
     new_password = request.data.get('password')
     
     try:
+        # Decode the user ID from the link
         uid = urlsafe_base64_decode(uidb64).decode()
         user = User.objects.get(pk=uid)
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         return Response({"error": "Invalid user identification."}, status=400)
 
+    # Verify that the token is valid for this specific user
     if default_token_generator.check_token(user, token):
         user.set_password(new_password)
         user.save()
